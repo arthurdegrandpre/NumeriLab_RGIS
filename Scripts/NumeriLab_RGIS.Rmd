@@ -11,4 +11,4 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## R as a mapping and GIS software
 
-
+## Why?
