@@ -9,6 +9,51 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R as a mapping and GIS software
+## Context
 
-## Why?
+Most would agree that data science should always start and end with data visualization. It allows the scientist to understand the data, its structure and distribution, but also to connect with the public, by creating easily understandable content to facilitate communication. 
+
+In the previous workshops, we have learned how to: 
+- Efficiently visualize data and results
+- Manipulate Data to facilitate its analysis
+- Optimize replicability and sharing of our codes
+
+... and all of this makes it hard to leave the R environment! Still, most of us still are leaving the comfort of R whenever we are faced with spatial data, splitting our workflow and creating different codes, different processes and ultimately resulting in a loss of time and efficiency.
+
+
+## R as a GIS and Mapping Software
+
+To address this problem, multiple libraries have been made available in R in order to deal with spatial data, its visualisation, its manipulation and its analysis.
+the most notable are probably:
+
+ggmap
+rgdal
+rgeos
+maptools
+tmap
+leafy
+sp
+raster
+spdep
+
+## ressources
+
+tutorials:
+-https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+-https://pakillo.github.io/R-GIS-tutorial/
+-http://www.nickeubank.com/gis-in-r/
+-http://remi-daigle.github.io/GIS_mapping_in_R/
+-https://www.r-bloggers.com/using-r-as-a-gis/
+
+cheat sheets
+-https://www.maths.lancs.ac.uk/~rowlings/Teaching/UseR2012/cheatsheet.html
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_raster_cheatsheet.pdf
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_vector_cheatsheet.pdf
+
+
+
+
+
+
+
+
