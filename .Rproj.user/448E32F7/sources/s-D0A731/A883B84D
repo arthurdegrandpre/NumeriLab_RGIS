@@ -7,14 +7,15 @@
     "folds" : "",
     "hash" : "0",
     "id" : "A883B84D",
-    "lastKnownWriteTime" : 1540916784,
-    "last_content_update" : 1540934809557,
+    "lastKnownWriteTime" : 1540916963,
+    "last_content_update" : 1540934989126,
     "path" : "//glaciolab/Z/Users/degranda/Rscripts/NumeriLab_RGIS/Scripts/NumeriLab_RGIS.Rmd",
     "project_path" : "Scripts/NumeriLab_RGIS.Rmd",
     "properties" : {
         "cursorPosition" : "38,13",
         "scrollLine" : "4",
-        "tempName" : "Untitled1"
+        "tempName" : "Untitled1",
+        "working_dir" : "project"
     },
     "relative_order" : 1,
     "source_on_save" : false,
