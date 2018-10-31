@@ -26,15 +26,60 @@ In the previous workshops, we have learned how to:
 To address this problem, multiple libraries have been made available in R in order to deal with spatial data, its visualisation, its manipulation and its analysis.
 the most notable are probably:
 
-ggmap
-rgdal
-rgeos
-maptools
-tmap
-leafy
+ggmap : This package is an extension for ggplot2 allowing the plotting of spatial data into maps
+rgdal : An interface to access gdal, a spatial data processing library
+rgeos : An interface to access geos, a spatial vector data processing library
+maptools : Provides mapping functions
+tmap : A mapping package
+leafy : Used to create interactive maps. this is one of the most used package for online maps
 sp
 raster
 spdep
+
+
+## Goals
+
+reading a raster from file
+loading basemap from internet
+loading satellite data from internet
+reading shapefile
+
+saving layers
+mapping (multiple views, legends, scales, titles, etc.)
+exporting maps
+
+manipulate shapefile
+rasterize
+raster calculator
+vectorize
+buffer
+clip
+zonal statistics
+landscape metrics
+
+
+
+## Exercice:
+load high resolution image of trois-rivières and campus polygon
+clip for raster of campus only
+classify the campus land cover
+vectorize / rasterize
+
+load proba-v 100m region data,
+use status map to mask out bad data
+calculate NDVI
+dissolve campus forest polygons to extract zonal statistics data from proba-v 100 TOC
+
+insert sampling stations from around trois-rivières (points)
+buffer around them at r=100m for zonal statistics
+
+load high resolution data from around all those stations and classify them
+obtain landscape metrics and zonal stats of sampling stations in trois-rivières
+
+
+
+
+
 
 ## ressources
 
