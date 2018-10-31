@@ -2,7 +2,9 @@
 title: "NumeriLab_RGIS"
 author: "Arthur"
 date: "30 octobre 2018"
-output: html_document
+output:
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -60,6 +62,38 @@ landscape metrics
 
 
 ## Exercice:
+
+Step 1. Prepare R environment
+```{r preparation}
+rm(list=ls())
+gc()
+
+library(sp)
+library(raster)
+library(rgdal)
+library(rgeos)
+
+```
+
+Step 2. Loading and plotting rasters, vectors and basemaps
+
+
+```{r loading and plotting rasters, vectors and basemaps}
+
+tr_r = raster("./Data/EO_Browser_S2_20180913/True color.tiff")
+plot(tr_r)
+tr_r
+
+
+tr_r = brick("./Data/EO_Browser_S2_20180913/True color.tiff")
+tr_r
+plot(tr_r)
+plotRGB(tr_r, main="Trois-Rivières on 2018-09-13, Sentinel-2")
+
+```
+
+
+
 load high resolution image of trois-rivières and campus polygon
 clip for raster of campus only
 classify the campus land cover
@@ -72,6 +106,14 @@ dissolve campus forest polygons to extract zonal statistics data from proba-v 10
 
 insert sampling stations from around trois-rivières (points)
 buffer around them at r=100m for zonal statistics
+
+
+Extra:
+
+
+
+
+
 
 load high resolution data from around all those stations and classify them
 obtain landscape metrics and zonal stats of sampling stations in trois-rivières
