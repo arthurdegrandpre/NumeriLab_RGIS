@@ -1,0 +1,552 @@
+---
+title: "NumeriLab; R maps and GIS"
+author: "Arthur de Grandpré"
+date: "25 janvier 2019"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Context
+
+Most would agree that data science should always start and end with data visualization. It allows the scientist to understand the data, its structure and distribution, but also to connect with the public, by creating easily understandable content to facilitate communication. 
+
+In the previous workshops, we have learned how to:   
+- Efficiently visualize data and results  
+- Manipulate Data to facilitate its analysis  
+- Generate data efficiently in order to replicate real life trends  
+  
+... and all of this makes it hard to leave the R environment! Still, most of us still are leaving the comfort of R whenever we are faced with spatial data, splitting our workflow and creating different codes, different processes and ultimately resulting in a loss of time and efficiency.  
+  
+While R still can't fully replace a full GIS suit, it is able to perform most tasks that are required on an almost daily basis for people working with spatial data.
+
+  
+## R as a GIS and Mapping Software
+
+To address this problem, multiple libraries have been made available in R in order to deal with spatial data, its visualisation, its manipulation and its analysis.
+the most notable are probably:
+
+
+**GIS**  
+sp : allow the creation and manipulation of spatial objects (spatialpointsdataframes) + apply CRS and stransformations
+rgdal : An interface to access gdal, a spatial data processing library  
+rgeos : An interface to access geos, a spatial vector data processing library  
+GeoJSON : package to read GeoJSON data (single file container for spatial data)
+  
+**mapping**  
+base R : plot() can still do most of the job  
+ggplot2 : still able to do most of the job, prettier  
+ggmap : extends ggplot2 mapping functionalities and enables to retrieve google style static maps  
+ggsn : adds scale bars and north arrows to ggmap
+leaflet : allows to build interactive maps, google map style  
+ggsn : for on map scale and north arrow, but might not work as expected  
+  
+**other useful packages**  
+tmap ; raster ; spdep ; cartography ; maptools ; gstat
+  
+## Goals of the workshop
+
+The main goal of this workshop is to break the mindset in which R is unable to deal with spatial data or spatial analysis.  
+It is important to keep in mind that this is *only an introduction* and that it is possible to do almost anything on R, and in *many different ways*.  
+Also, it might be even more important to keep in mind that in many situations, while R *could* do it, you might want to consider other solutions. Using R for everything is fun and can be practical, but sometimes it's just more tedious than necessary.
+  
+By the end of this workshop, I wish that frequent GIS tasks do not feel intimidating for those who attended, such as:    
+
+- reading and visualising point data  
+- transforming the CRS from data  
+- loading a basemap from the internet  
+- reading and visualising a vector file  
+- reading and visualising a raster file  
+- making simple maps
+
+- clipping a raster with a polygon
+- run an unsupervised classification
+- compare vegetation indexes (NDVI)
+- obtain zonal statistics on buffers
+- obtain landscape metrics
+
+
+## Exercice:
+
+note: all data for this exercise is located in the repository under the "Data" sub-directories
+
+#**Step 1.** Prepare R environment and load the libraries
+```{r packages installation , eval=FALSE, include=FALSE}
+install.packages("sp")
+install.packages("rgdal")
+install.packages("ggplot2")
+install.packages("ggmap")
+install.packages("ggsn")
+install.packages("leaflet")
+install.packages("mapview")
+webshot::install_phantomjs()
+install.packages("raster")
+install.packages("cluster")
+install.packages("SDMTools")
+install.packages("rgeos")
+```
+
+
+
+
+```{r preparation, message=F, warning=F}
+rm(list=ls())
+
+library(sp) # for functions coordinates, proj4string, CRS
+library(rgdal) # for functions readOGR
+library(ggmap)
+library(ggsn) #scalebar and north arrow for ggplot and ggmap
+library(leaflet)
+library(mapview)#; webshot::install_phantomjs() has to be run only once
+
+library(raster) # for functions raster, plotRGB#library(rgeos)
+library(cluster)
+library(SDMTools)
+library(rgeos)
+```
+
+**Step 2.** reading and visualising point data + adding a *Google* type basemap
+
+Multiples solutions are available to read point data in the R environment depending on your database format. The most common data format is text, such as .csv files. When working with .csv files, you will often have two columns referring to the coordinates of your data, which can be used create a spatial object with the package *sp*.  
+  
+If you have a shapefile of your data, it will be imported directly as a spatial object by using the function readOGR() from the *rgdal* package
+
+```{r reading point data}
+df = read.csv("Data/csv/data_picom_HT.csv",sep=";")
+# this text file contains x and y coordinates and a random associated value
+class(df)
+head(df)
+```
+
+Help sheet for CRS selection in *rgdal* and *sp* @ https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/OverviewCoordinateReferenceSystems.pdf
+
+```{r transforming the data into a spatial object and defining the CRS}
+coordinates(df) = c("long","lat")
+class(df) # at this point R recognizes the data as a spatial object
+proj4string(df) = CRS("+init=epsg:4269") #this allows to specify the data CRS is NAD83
+```
+
+At this point, we have the same output as if we had used the function readOGR from rgdal to read a shapefile of the same information
+
+```{r}
+summary(df)
+```
+
+It is very easy to transform the CRS of an object by using the spTransform function. it can be done my manually entering the datum, ellipsoid and projection, but the simplest way is to just feed the epsg code to the function. epsg codes are unique identifiers for CRS and can be bound easily on internet.
+
+```{r}
+df <- spTransform(df, CRS("+init=epsg:4326"))  # transform to wgs84
+summary(df)
+
+```
+
+at this point, the dataframe can be plotted in base R for visualisation...
+
+```{r}
+plot(df)
+```
+
+..and made into a simple plot for visualisation.
+
+```{r}
+plot(df,
+     main="data points",
+     axes=T,
+     pch=21,
+     bg=rev(heat.colors(5))[cut(df$tot_drymass,breaks=c(0,5000,7500,10000,12500,25000), labels = F)])
+```
+
+and the same can be done using ggplot2:
+
+```{r}
+
+ggplot()+
+  geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
+  scale_fill_gradientn(colours=rev(heat.colors(5)))+
+  ggtitle("data points")
+
+```
+
+So we can now see that we have spatial points with some values, but that doesn't give us much of an idea of what they are and their context. For adding context, a basemap is really important. 
+
+*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from google and OpenStreetMaps. Sadly, google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as stamen. That makes loading a static basemap a bit harder.
+While it is still possible to access google maps and OpenStreetMaps, it is required to register an API key (generally free to obtain, but requires registration)
+
+```{r, message=F}
+
+bbox(df)
+map = get_stamenmap(bbox=c(left    = -72.6,
+                           bottom  =  46.335,
+                           right   = -72.565,
+                           top     =  46.355),
+                    zoom=14, maptype= "toner-lite")
+
+# other basemap types from stamen:
+#“terrain”, “terrain-background”, “terrain-labels”, “terrain-lines”, “toner”, “toner-2010”, “toner-2011”, “toner-background”, “toner-hybrid”, “toner-labels”, “toner-lines”, “toner-lite”, “watercolor”
+```
+
+```{r eval=FALSE, include=FALSE}
+ggmap(map)+
+  geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
+  scale_fill_gradientn(colours=rev(heat.colors(5)))+
+  ggtitle("data points")+
+  coord_equal(1.4)+
+  north(x.min=-72.6, x.max=-72.565, y.min=46.335, y.max=46.355)+
+  scalebar(x.min=-72.8, x.max=-72.585, y.min=46.3365, y.max=46.339,
+           dist=0.5, dd2km=T, model="WGS84", height=0.2, st.dist=0.3)
+
+map2
+ggsave("Figures/ggmap1.png")
+
+```
+
+Luckily, leaflet still does this very good for interactive maps.  
+By default, leaflet uses OpenStreetMap
+
+```{r}
+# using the default values, leaflet uses OpenStreetMap
+m1 <- leaflet(df) %>%
+  addTiles()
+m1
+
+```
+
+But it can be set to call other data sources, including google if an API key is registered.
+
+```{r}
+m2 <- leaflet(df) %>%
+  addProviderTiles("Stamen.Toner")
+m2
+```
+
+It possesses different types of markers, such as pins.
+
+```{r}
+
+m1 %>%
+  addMarkers()
+
+```
+
+Or circles.
+
+```{r}
+
+m1 %>%
+  addCircleMarkers()
+
+```
+
+And those can be customized to display data values with continuous scales
+
+```{r}
+
+pal = colorNumeric(
+  palette = "RdYlGn",
+  domain = df$tot_drymass
+)
+
+m1 %>%
+  addCircleMarkers(color = "black", opacity=1, fillColor=~pal(tot_drymass), fillOpacity = 0.5, radius=8) %>%
+  addLegend("bottomright",
+            pal=pal,
+            values=~tot_drymass,
+            title= "drymass (kg / 0.04 ha")
+
+```
+
+Or by quantiles
+
+```{r}
+
+qpal = colorQuantile("RdYlGn", df$tot_drymass, n = 4)
+
+m1 %>%
+  addCircleMarkers(color = "black", opacity=1, fillColor=~qpal(tot_drymass), fillOpacity = 0.5, radius=8) %>%
+  addLegend("bottomright",
+            pal=qpal,
+            values=~tot_drymass,
+            title= "Drymass Quantile") %>%
+  addScaleBar(position="bottomleft")
+
+```
+
+And their size can also be fixed to represent the size of a variable
+
+```{r}
+m1 %>%
+  addCircles(color = "black", opacity=0.5, fillColor=~pal(tot_drymass), fillOpacity = 0.8, radius=df$n_trees) %>%
+  addLegend("bottomright",
+            pal=qpal,
+            values=~tot_drymass,
+            title= "Drymass Quantile") %>%
+  addScaleBar(position="bottomleft")
+```
+
+
+And then this map can be saved to a png or jpg format using the *mapview* package
+
+```{r}
+m1 = m1 %>%
+  addCircles(stroke=F, opacity=1, fillColor=~pal(df$tot_drymass), fillOpacity = 0.8, radius=df$n_trees) %>%
+  addLegend("bottomright",
+            pal=qpal,
+            values=~df$tot_drymass,
+            title= "values") %>%
+  addScaleBar()
+
+mapshot(m1, file= "Figures/m1.png")
+
+```
+
+#**Step 2.** Loading and plotting vectors and rasters
+
+often, we have polygons delimiting zones of interest for our data. they can be used for visualisation, but also in data analysis.
+
+```{r}
+##adding polygon
+campus= readOGR("Data/shapefiles/campus polygon.shp")
+campus= spTransform(campus, CRS("+init=epsg:4326"))
+campus
+
+
+m1 = m1 %>% addPolygons(data=campus, stroke=T, fillOpacity = 0)
+m1
+
+```
+
+When working with spatial data, it can often be useful to access remote sensing data to perform different types of analysis.
+
+the rest of the workshop will be mostly about working with such data in R, based on a sample of Sentinel-2 imagery.
+
+Then, let's load some data raster data that we can work with.
+To do so, the package "raster" contains most of the basic functions required for R to read and manage rasters. A raster is basically a spatially referenced matrix. where every value is associated with a spatial extent (resolution) and a coordinate taken from a georeference system (ex: WGS84).
+
+```{r loading and plotting rasters}
+
+# The raster function allows to read the most common raster formats, such as .TIFF
+tr_r = raster("./Data/S2/True color.tiff")
+
+# base R has some functions that allow for plotting of rasters
+plot(tr_r, main="UQTR on 2018-09-13, Sentinel-2")
+# something seems quite wrong with the colour, so let's inspect our raster
+tr_r
+
+```
+
+```{r}
+
+
+
+
+# it seems we only have access to one of the 3 layers contained in tr_r. This is because the raster function is programmed to create a single layer object.
+# still, we can look into better ways of diplaying this single band, such as grayscale
+grayscale_colors = gray.colors(100,
+                               start= 0.0,
+                               end=1,
+                               gamma=2.2,
+                               alpha=NULL)
+plot(tr_r, main="UQTR on 2018-09-13, red band grayscale, Sentinel-2", col=grayscale_colors)
+
+
+```
+
+```{r}
+
+# or load another band from the same source
+tr_r2=raster("./Data/s2/True color.tiff", band=2)
+tr_r2 # this shows we are now using band 2 of 3 instead of 1
+
+```
+
+```{r}
+# we need to use the brick function to create a RasterBrick, composed of multiple raster layers
+tr_r = brick("./Data/s2/True color.tiff")
+tr_r # we do have our 3 layers
+
+tr_r=addLayer(tr_r, "Data/s2/B08.tiff")
+
+tr_r=projectRaster(tr_r, crs=("+init=epsg:4326"))
+plot(tr_r, col=grayscale_colors, main="UQTR on 2018-09-13, grayscale, Sentinel=2") # but the plot function does not plot them together. To do so, we need to specify each color bands, or use the function plotRGB
+hist(tr_r)
+plotRGB(tr_r, r=1,g=2,b=3,stretch="hist")
+
+```
+
+```{r}
+
+map1=viewRGB(tr_r, 1,2,3, map=m1, quantiles = c(0.05, 0.95))
+map1
+
+```
+
+when multiple bands are available, it becomes possible to easily perform raster maths, allowing to obtain different indexes, such as NDVI
+
+```{r}
+
+tr_r$NDVI=(tr_r$B08-tr_r$True_color.1)/(tr_r$B08+tr_r$True_color.1)
+plot(tr_r$NDVI)
+
+```
+
+it is also possible to limit the extent of the satellite data to our zone of interest as delimited by our campus polygon
+
+```{r}
+
+crop_tr=mask(tr_r,campus)
+plot(crop_tr$NDVI)
+
+```
+
+from there, we can visualise the campus NDVI values back into the leaflet environment.
+
+```{r}
+val = as.numeric(c(0:1))
+pal = colorNumeric(c("red","yellow","green"), val, na.color="transparent")
+                 
+ndvi_map=leaflet(df) %>%
+  addTiles() %>%
+  addRasterImage(crop_tr$NDVI, colors = pal , opacity = 0.5) %>%
+  addLegend(pal = pal, values = val, title = "NDVI") %>%
+  addCircles(color="black", opacity = 1)
+ndvi_map
+
+```
+
+since we have many data points scattered around campus that already have a lot of information, it can be interesting to add some remote sensing data to our data frame. That allows us to look at many types of interesting relations in the data.
+
+```{r ndvi zonal stats from extract function}
+
+mean_ndvi=extract(crop_tr$NDVI, df, buffer=10, small=T, fun=mean)
+sd_ndvi=extract(crop_tr$NDVI, df, buffer=10, small=T, fun=sd)
+
+df$ndvi=mean_ndvi
+df$ndvi_sd=sd_ndvi
+
+plot(df$ndvi~df$aerial_drymass)
+plot(df$ndvi~df$est_age)
+plot(df$ndvi~df$dom_sp)
+plot(df$ndvi~df$zone_eco)
+
+```
+
+Using the remote sensing data, it is also possible to perform classification of the scene based on our different layers. To classifiy vegetation, let's use the NDVI and a very basic kmeans unsupervised classifier.
+
+```{r classification}
+set.seed(1)
+
+v <- getValues(crop_tr$NDVI)
+i <- which(!is.na(v))
+v <- na.omit(v)
+
+
+E <- kmeans(v, 3, iter.max = 100, nstart = 10)
+kmeans_raster <- raster(crop_tr$NDVI)
+kmeans_raster[i] <- E$cluster
+plot(kmeans_raster)
+```
+
+based on this classification, we can then isolate the vegetated parts of our raster, and use it to obtain patch statistics.
+
+```{r}
+
+cluster_poly=rasterToPolygons(kmeans_raster, dissolve=T)
+forest_poly=cluster_poly[cluster_poly$layer==1,]
+forest_poly=disaggregate(forest_poly)
+
+plot(forest_poly)
+
+```
+
+This mask can be used on the raster again
+
+```{r}
+
+forest=mask(crop_tr, forest_poly)
+
+plot(forest$NDVI)
+
+```
+
+Then we can see if the new mask seems to fit forested areas from OpenStreetMaps
+
+```{r}
+
+leaflet(df) %>%
+  addTiles() %>%
+  addRasterImage(forest$NDVI, colors = pal , opacity = 0.5) %>%
+  addLegend(pal = pal, values = val, title = "NDVI")
+
+```
+
+Then, each vegetated area can be given a unique ID, and whole patch statistics can be obtained 
+
+```{r giving ids to polygons}
+
+forest_poly@data$ID=getSpPPolygonsIDSlots(forest_poly)
+
+o = over(df, forest_poly)
+df@data = cbind(df@data, o)
+
+
+patch_ndvi=extract(crop_tr$NDVI, forest_poly, fun=mean)
+patch_ndvi=as.data.frame(patch_ndvi)
+
+patch_ndvi$ID=c(1:49)
+
+df@data=merge(df@data,patch_ndvi)
+
+head(df@data)
+```
+
+Patch metrics such as the ones produced by fragstats can also be obtained using package SDMTools
+
+```{r}
+
+raster_forest=rasterize(forest_poly, forest$NDVI)
+plot(raster_forest)
+
+patch=PatchStat(as.matrix(raster_forest))
+
+colnames(patch)[1]="ID"
+patch
+```
+
+```{r}
+
+df@data=merge(df@data,patch)
+View(df@data)
+
+```
+
+
+## acknowledgements
+
+MERCI à Hugo Tremblay pour les données du picom réalisé sur la captation du carbone sur le campus
+
+## additionnal ressources
+
+tutorials:
+https://www.neonscience.org/dc-multiband-rasters-r
+-https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+-https://pakillo.github.io/R-GIS-tutorial/
+-http://www.nickeubank.com/gis-in-r/
+-http://remi-daigle.github.io/GIS_mapping_in_R/
+-https://www.r-bloggers.com/using-r-as-a-gis/
+
+cheat sheets
+-https://www.maths.lancs.ac.uk/~rowlings/Teaching/UseR2012/cheatsheet.html
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_raster_cheatsheet.pdf
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_vector_cheatsheet.pdf
+
+
+
+
+
+
+
+
