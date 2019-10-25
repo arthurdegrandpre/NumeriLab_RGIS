@@ -1,10 +1,12 @@
 ---
-title: "NumeriLab; R maps and GIS"
+title: "R maps and GIS : Leaflet"
 author: "Arthur de Grandpré"
-date: "25 janvier 2019"
+date: "25 octobre 2019"
 output: 
   html_document:
-    keep_md: true
+    keep_md: yes
+    toc: yes
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -519,16 +521,16 @@ test
 ```
 
 
-# extras
-tutorials:  
-https://www.neonscience.org/dc-multiband-rasters-r  
+# Extras
+Tutorials:  
+-https://www.neonscience.org/dc-multiband-rasters-r  
 -https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf  
 -https://pakillo.github.io/R-GIS-tutorial/  
 -http://www.nickeubank.com/gis-in-r/  
 -http://remi-daigle.github.io/GIS_mapping_in_R/  
 -https://www.r-bloggers.com/using-r-as-a-gis/  
 
-cheat sheets:  
+Cheat sheets:  
 -https://www.maths.lancs.ac.uk/~rowlings/Teaching/UseR2012/cheatsheet.html  
 -http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_raster_cheatsheet.pdf  
 -http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_vector_cheatsheet.pdf  
