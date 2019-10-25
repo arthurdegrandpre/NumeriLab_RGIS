@@ -63,6 +63,7 @@ By the end of this workshop, I wish that frequent GIS tasks do not feel intimida
 - reading and visualising a raster file  
 - making and sharing simple maps
 - clipping a raster with a polygon
+- sharing an html map including layers control
 
   A second workshop will focus on more advanced features to work with rasters such as remote sensing imagery, introducing methods such as:
   
@@ -126,7 +127,7 @@ head(df)
 
 Help sheet for CRS selection in *rgdal* and *sp* @ https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/OverviewCoordinateReferenceSystems.pdf
 
-```{r transforming the data into a spatial object and defining the CRS}
+```{r spatial object and CRS}
 coordinates(df) = c("long","lat")
 class(df) # at this point R recognizes the data as a spatial object
 proj4string(df) = CRS("+init=epsg:4269") #this allows to specify the data CRS is NAD83
@@ -134,13 +135,13 @@ proj4string(df) = CRS("+init=epsg:4269") #this allows to specify the data CRS is
 
 At this point, we have the same output as if we had used the function readOGR from rgdal to read a shapefile of the same information
 
-```{r}
+```{r summary of spatialpointsdataframe}
 summary(df)
 ```
 
 It is very easy to transform the CRS of an object by using the spTransform function. it can be done my manually entering the datum, ellipsoid and projection, but the simplest way is to just feed the epsg code to the function. epsg codes are unique identifiers for CRS and can be bound easily on internet.
 
-```{r}
+```{r sptransform}
 df <- spTransform(df, CRS("+init=epsg:4326"))  # transform to wgs84
 summary(df)
 
@@ -148,13 +149,13 @@ summary(df)
 
 at this point, the dataframe can be plotted in base R for visualisation...
 
-```{r}
+```{r base r plot}
 plot(df)
 ```
 
 ..and made into a simple plot for visualisation.
 
-```{r}
+```{r base r plot 2}
 plot(df,
      main="data points",
      axes=T,
@@ -164,7 +165,7 @@ plot(df,
 
 and the same can be done using ggplot2:
 
-```{r}
+```{r ggplot}
 ggplot()+
   geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
   scale_fill_gradientn(colours=rev(heat.colors(5)))+
@@ -174,10 +175,12 @@ ggplot()+
 
 So we can now see that we have spatial points with some values, but that doesn't give us much of an idea of what they are and their context. For adding context, a basemap is really important. 
 
-*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from google and OpenStreetMaps. Sadly, google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as stamen. That makes loading a static basemap a bit harder.
-While it is still possible to access google maps and OpenStreetMaps, it is required to register an API key (generally free to obtain, but requires registration)
+*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from google and OpenStreetMaps. Sadly, google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as stamen. That makes loading a static basemap a bit harder.  
+While it is still possible to access google maps and OpenStreetMaps, it is required to register an API key (generally free to obtain, but requires registration)  
+  
+https://www.r-bloggers.com/geocoding-with-ggmap-and-the-google-api/ for google API
 
-```{r, message=F}
+```{r basemap, message=F}
 
 map = get_stamenmap(bbox=bbox(df),
                   zoom=17,
@@ -190,7 +193,7 @@ ggmap(map)
 
 
 Using the basemap, it's possible to plot the points with a lot more information. Also, using the *ggsn* library, we can add a north arrow and a scale bar to ggmap. (For unknown reasons the scale bar did not work here so it was removed)
-```{r ggsn}
+```{r ggmap and ggsn}
 map2 = ggmap(map)+
   blank()+
   geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
@@ -432,11 +435,13 @@ ndvi_map
 
 since we have many data points scattered around campus that already have a lot of information, it can be interesting to add some remote sensing data to our data frame. That allows us to look at many types of interesting relations in the data.
 
+# **Step 3.** extracting data from rasters
 ```{r ndvi zonal stats from extract function}
 
-mean_ndvi=extract(crop_tr$NDVI, df, buffer=10, small=T, fun=mean)
-sd_ndvi=extract(crop_tr$NDVI, df, buffer=10, small=T, fun=sd)
+mean_ndvi = extract(crop_tr$NDVI, df, buffer=10, small=T, fun=mean)
+sd_ndvi = extract(crop_tr$NDVI, df, buffer=10, small=T, fun=sd)
 
+?extract
 df$ndvi=mean_ndvi
 df$ndvi_sd=sd_ndvi
 
@@ -450,9 +455,10 @@ plot(df$ndvi~df$zone_eco)
 Now that we know how to display and manipulate spatial data, let's put it into a nice shareable format and save it.
 To do so, let's redefine our colours and add layer control, then let's save the map into an html object.
 
+# **Step 4.** Sharing your awesome map
 ```{r}
         
-ndvi_val = as.numeric(c(0:1))
+ndvi_val = as.numeric(c(-1:1))
 ndvi_pal = colorNumeric("RdYlGn",
                         ndvi_val,
                         na.color = "transparent")
@@ -498,20 +504,35 @@ saveWidget(map, file="map.html", selfcontained = T)
 
 ```
 
+# **Step 5.** Sharing spatial data
 
-tutorials:
-https://www.neonscience.org/dc-multiband-rasters-r
--https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
--https://pakillo.github.io/R-GIS-tutorial/
--http://www.nickeubank.com/gis-in-r/
--http://remi-daigle.github.io/GIS_mapping_in_R/
--https://www.r-bloggers.com/using-r-as-a-gis/
+There are many ways to share spatial data without loosing it's spatial properties (CRS, for exemple).
 
-cheat sheets
--https://www.maths.lancs.ac.uk/~rowlings/Teaching/UseR2012/cheatsheet.html
--http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_raster_cheatsheet.pdf
--http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_vector_cheatsheet.pdf
+The classics are the shapefiles, but they are clunky and require multiple files. Alternatives include the GeoJSON format, and more recently, geopackage (GPKG, which is also faster)
 
+```{r write geopackage}
+
+writeOGR(df, "Data/out_df.gpkg","campus_trees",driver="GPKG", overwrite_layer = T)
+
+test = readOGR("Data/out_df.gpkg")
+test
+```
+
+
+# extras
+tutorials:  
+https://www.neonscience.org/dc-multiband-rasters-r  
+-https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf  
+-https://pakillo.github.io/R-GIS-tutorial/  
+-http://www.nickeubank.com/gis-in-r/  
+-http://remi-daigle.github.io/GIS_mapping_in_R/  
+-https://www.r-bloggers.com/using-r-as-a-gis/  
+
+cheat sheets:  
+-https://www.maths.lancs.ac.uk/~rowlings/Teaching/UseR2012/cheatsheet.html  
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_raster_cheatsheet.pdf  
+-http://www.nickeubank.com/wp-content/uploads/2015/10/gis_in_r_vector_cheatsheet.pdf  
+  
 
 
 
