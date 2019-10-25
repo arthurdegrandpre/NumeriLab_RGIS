@@ -33,16 +33,16 @@ the most notable are probably:
 
 **GIS**  
 sp : allow the creation and manipulation of spatial objects (spatialpointsdataframes) + apply CRS and stransformations
+sf : alternative environment to sp, uses different objects but works in very similar ways
 rgdal : An interface to access gdal, a spatial data processing library  
-rgeos : An interface to access geos, a spatial vector data processing library  
-GeoJSON : package to read GeoJSON data (single file container for spatial data)
-  
+rgeos : An interface to access geos, a spatial vector data processing library 
+
 **mapping**  
-base R : plot() can still do most of the job  
-ggplot2 : still able to do most of the job, prettier  
-ggmap : extends ggplot2 mapping functionalities and enables to retrieve google style static maps  
+base R : plot() can do most of the job, but we can get much better!  
+ggplot2 : still able to do most of the job, but prettier  
+ggmap : extends ggplot2 mapping functionalities and enables to retrieve google style static maps, requires API for most applications  
 ggsn : adds scale bars and north arrows to ggmap
-leaflet : allows to build interactive maps, google map style  
+leaflet : allows to build interactive maps, google map style, easy to share  
 ggsn : for on map scale and north arrow, but might not work as expected  
   
 **other useful packages**  
@@ -61,14 +61,15 @@ By the end of this workshop, I wish that frequent GIS tasks do not feel intimida
 - loading a basemap from the internet  
 - reading and visualising a vector file  
 - reading and visualising a raster file  
-- making simple maps
-
+- making and sharing simple maps
 - clipping a raster with a polygon
-- run an unsupervised classification
-- compare vegetation indexes (NDVI)
-- obtain zonal statistics on buffers
-- obtain landscape metrics
 
+  A second workshop will focus on more advanced features to work with rasters such as remote sensing imagery, introducing methods such as:
+  
+- running an unsupervised classification
+- comparing vegetation indexes (NDVI)
+- obtaining zonal statistics on buffers
+- obtaining landscape metrics
 
 ## Exercice:
 
@@ -88,9 +89,8 @@ install.packages("raster")
 install.packages("cluster")
 install.packages("SDMTools")
 install.packages("rgeos")
+install.packages("htmlwidgets")
 ```
-
-
 
 
 ```{r preparation, message=F, warning=F}
@@ -102,11 +102,13 @@ library(ggmap)
 library(ggsn) #scalebar and north arrow for ggplot and ggmap
 library(leaflet)
 library(mapview)#; webshot::install_phantomjs() has to be run only once
+library(tidyverse)
 
 library(raster) # for functions raster, plotRGB#library(rgeos)
 library(cluster)
 library(SDMTools)
 library(rgeos)
+library(htmlwidgets)
 ```
 
 **Step 2.** reading and visualising point data + adding a *Google* type basemap
@@ -163,7 +165,6 @@ plot(df,
 and the same can be done using ggplot2:
 
 ```{r}
-
 ggplot()+
   geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
   scale_fill_gradientn(colours=rev(heat.colors(5)))+
@@ -178,27 +179,26 @@ While it is still possible to access google maps and OpenStreetMaps, it is requi
 
 ```{r, message=F}
 
-bbox(df)
-map = get_stamenmap(bbox=c(left    = -72.6,
-                           bottom  =  46.335,
-                           right   = -72.565,
-                           top     =  46.355),
-                    zoom=14, maptype= "toner-lite")
-
+map = get_stamenmap(bbox=bbox(df),
+                  zoom=17,
+                  crop=F,
+                  maptype = "toner-lite")
+ggmap(map)
 # other basemap types from stamen:
 #“terrain”, “terrain-background”, “terrain-labels”, “terrain-lines”, “toner”, “toner-2010”, “toner-2011”, “toner-background”, “toner-hybrid”, “toner-labels”, “toner-lines”, “toner-lite”, “watercolor”
 ```
 
-```{r eval=FALSE, include=FALSE}
-ggmap(map)+
+
+Using the basemap, it's possible to plot the points with a lot more information. Also, using the *ggsn* library, we can add a north arrow and a scale bar to ggmap. (For unknown reasons the scale bar did not work here so it was removed)
+```{r ggsn}
+map2 = ggmap(map)+
+  blank()+
   geom_point(data=as.data.frame(df), aes(long,lat, fill=tot_drymass), shape=21, size=2)+
   scale_fill_gradientn(colours=rev(heat.colors(5)))+
-  ggtitle("data points")+
-  coord_equal(1.4)+
-  north(x.min=-72.6, x.max=-72.565, y.min=46.335, y.max=46.355)+
-  scalebar(x.min=-72.8, x.max=-72.585, y.min=46.3365, y.max=46.339,
-           dist=0.5, dd2km=T, model="WGS84", height=0.2, st.dist=0.3)
-
+  ggtitle("data points") +
+  coord_equal(1.4) +
+  north(df,
+        location="topright") 
 map2
 ggsave("Figures/ggmap1.png")
 
@@ -209,25 +209,25 @@ By default, leaflet uses OpenStreetMap
 
 ```{r}
 # using the default values, leaflet uses OpenStreetMap
-m1 <- leaflet(df) %>%
+leaflet(df) %>%
   addTiles()
-m1
 
 ```
 
 But it can be set to call other data sources, including google if an API key is registered.
 
 ```{r}
-m2 <- leaflet(df) %>%
+leaflet(df) %>%
   addProviderTiles("Stamen.Toner")
-m2
+
 ```
 
 It possesses different types of markers, such as pins.
 
 ```{r}
 
-m1 %>%
+leaflet(df) %>%
+  addTiles() %>%
   addMarkers()
 
 ```
@@ -236,7 +236,8 @@ Or circles.
 
 ```{r}
 
-m1 %>%
+leaflet(df) %>%
+  addTiles() %>%
   addCircleMarkers()
 
 ```
@@ -250,7 +251,8 @@ pal = colorNumeric(
   domain = df$tot_drymass
 )
 
-m1 %>%
+leaflet(df) %>%
+  addTiles() %>%
   addCircleMarkers(color = "black", opacity=1, fillColor=~pal(tot_drymass), fillOpacity = 0.5, radius=8) %>%
   addLegend("bottomright",
             pal=pal,
@@ -265,7 +267,8 @@ Or by quantiles
 
 qpal = colorQuantile("RdYlGn", df$tot_drymass, n = 4)
 
-m1 %>%
+leaflet(df) %>%
+  addTiles() %>%
   addCircleMarkers(color = "black", opacity=1, fillColor=~qpal(tot_drymass), fillOpacity = 0.5, radius=8) %>%
   addLegend("bottomright",
             pal=qpal,
@@ -278,7 +281,8 @@ m1 %>%
 And their size can also be fixed to represent the size of a variable
 
 ```{r}
-m1 %>%
+leaflet(df) %>%
+  addTiles() %>%
   addCircles(color = "black", opacity=0.5, fillColor=~pal(tot_drymass), fillOpacity = 0.8, radius=df$n_trees) %>%
   addLegend("bottomright",
             pal=qpal,
@@ -291,13 +295,16 @@ m1 %>%
 And then this map can be saved to a png or jpg format using the *mapview* package
 
 ```{r}
-m1 = m1 %>%
+m1 = leaflet(df) %>%
+  addTiles() %>%
   addCircles(stroke=F, opacity=1, fillColor=~pal(df$tot_drymass), fillOpacity = 0.8, radius=df$n_trees) %>%
   addLegend("bottomright",
             pal=qpal,
             values=~df$tot_drymass,
             title= "values") %>%
   addScaleBar()
+
+m1
 
 mapshot(m1, file= "Figures/m1.png")
 
@@ -309,13 +316,20 @@ often, we have polygons delimiting zones of interest for our data. they can be u
 
 ```{r}
 ##adding polygon
-campus= readOGR("Data/shapefiles/campus polygon.shp")
-campus= spTransform(campus, CRS("+init=epsg:4326"))
+campus = readOGR("Data/shapefiles/campus polygon.shp")
+campus = spTransform(campus, CRS("+init=epsg:4326"))
 campus
 
 
-m1 = m1 %>% addPolygons(data=campus, stroke=T, fillOpacity = 0)
-m1
+leaflet(df) %>%
+  addTiles() %>%
+  addCircles(stroke=F, opacity=1, fillColor=~pal(df$tot_drymass), fillOpacity = 0.8, radius=df$n_trees) %>%
+  addLegend("bottomright",
+            pal=qpal,
+            values=~df$tot_drymass,
+            title= "values") %>%
+  addScaleBar() %>%
+  addPolygons(data=campus, stroke=T, fillOpacity = 0)
 
 ```
 
@@ -340,9 +354,6 @@ tr_r
 
 ```{r}
 
-
-
-
 # it seems we only have access to one of the 3 layers contained in tr_r. This is because the raster function is programmed to create a single layer object.
 # still, we can look into better ways of diplaying this single band, such as grayscale
 grayscale_colors = gray.colors(100,
@@ -351,7 +362,6 @@ grayscale_colors = gray.colors(100,
                                gamma=2.2,
                                alpha=NULL)
 plot(tr_r, main="UQTR on 2018-09-13, red band grayscale, Sentinel-2", col=grayscale_colors)
-
 
 ```
 
@@ -374,13 +384,15 @@ tr_r=projectRaster(tr_r, crs=("+init=epsg:4326"))
 plot(tr_r, col=grayscale_colors, main="UQTR on 2018-09-13, grayscale, Sentinel=2") # but the plot function does not plot them together. To do so, we need to specify each color bands, or use the function plotRGB
 hist(tr_r)
 plotRGB(tr_r, r=1,g=2,b=3,stretch="hist")
-
+dev.off()
 ```
+
+
+It's not yet possible to add composite rasters in leaflet (such as RGB). to include true color raster, we need to add it using the mapview package and the viewRGB function. It does not allow to work the layer control in the same way.
 
 ```{r}
 
-map1=viewRGB(tr_r, 1,2,3, map=m1, quantiles = c(0.05, 0.95))
-map1
+viewRGB(tr_r, 1,2,3, map=m1, quantiles = c(0.05, 0.95))
 
 ```
 
@@ -405,14 +417,15 @@ plot(crop_tr$NDVI)
 from there, we can visualise the campus NDVI values back into the leaflet environment.
 
 ```{r}
+
 val = as.numeric(c(0:1))
 pal = colorNumeric(c("red","yellow","green"), val, na.color="transparent")
                  
 ndvi_map=leaflet(df) %>%
   addTiles() %>%
-  addRasterImage(crop_tr$NDVI, colors = pal , opacity = 0.5) %>%
+  addRasterImage(crop_tr$NDVI, colors = pal , opacity = 0.3) %>%
   addLegend(pal = pal, values = val, title = "NDVI") %>%
-  addCircles(color="black", opacity = 1)
+  addCircles(color="black", opacity = 1, stroke=T)
 ndvi_map
 
 ```
@@ -434,101 +447,57 @@ plot(df$ndvi~df$zone_eco)
 
 ```
 
-Using the remote sensing data, it is also possible to perform classification of the scene based on our different layers. To classifiy vegetation, let's use the NDVI and a very basic kmeans unsupervised classifier.
-
-```{r classification}
-set.seed(1)
-
-v <- getValues(crop_tr$NDVI)
-i <- which(!is.na(v))
-v <- na.omit(v)
-
-
-E <- kmeans(v, 3, iter.max = 100, nstart = 10)
-kmeans_raster <- raster(crop_tr$NDVI)
-kmeans_raster[i] <- E$cluster
-plot(kmeans_raster)
-```
-
-based on this classification, we can then isolate the vegetated parts of our raster, and use it to obtain patch statistics.
+Now that we know how to display and manipulate spatial data, let's put it into a nice shareable format and save it.
+To do so, let's redefine our colours and add layer control, then let's save the map into an html object.
 
 ```{r}
+        
+ndvi_val = as.numeric(c(0:1))
+ndvi_pal = colorNumeric("RdYlGn",
+                        ndvi_val,
+                        na.color = "transparent")
 
-cluster_poly=rasterToPolygons(kmeans_raster, dissolve=T)
-forest_poly=cluster_poly[cluster_poly$layer==1,]
-forest_poly=disaggregate(forest_poly)
+circ_pal = colorNumeric("viridis",
+                        df$total_drymass)
 
-plot(forest_poly)
-
-```
-
-This mask can be used on the raster again
-
-```{r}
-
-forest=mask(crop_tr, forest_poly)
-
-plot(forest$NDVI)
-
-```
-
-Then we can see if the new mask seems to fit forested areas from OpenStreetMaps
-
-```{r}
-
-leaflet(df) %>%
-  addTiles() %>%
-  addRasterImage(forest$NDVI, colors = pal , opacity = 0.5) %>%
-  addLegend(pal = pal, values = val, title = "NDVI")
-
-```
-
-Then, each vegetated area can be given a unique ID, and whole patch statistics can be obtained 
-
-```{r giving ids to polygons}
-
-forest_poly@data$ID=getSpPPolygonsIDSlots(forest_poly)
-
-o = over(df, forest_poly)
-df@data = cbind(df@data, o)
-
-
-patch_ndvi=extract(crop_tr$NDVI, forest_poly, fun=mean)
-patch_ndvi=as.data.frame(patch_ndvi)
-
-patch_ndvi$ID=c(1:49)
-
-df@data=merge(df@data,patch_ndvi)
-
-head(df@data)
-```
-
-Patch metrics such as the ones produced by fragstats can also be obtained using package SDMTools
-
-```{r}
-
-raster_forest=rasterize(forest_poly, forest$NDVI)
-plot(raster_forest)
-
-patch=PatchStat(as.matrix(raster_forest))
-
-colnames(patch)[1]="ID"
-patch
-```
-
-```{r}
-
-df@data=merge(df@data,patch)
-View(df@data)
+map = leaflet(df) %>% 
+  addScaleBar("bottomleft") %>% 
+  addTiles(group = "BaseOSM") %>%
+  addProviderTiles("Stamen.Toner",
+                   group = "BaseStamen") %>% 
+  addRasterImage(crop_tr$NDVI,
+                 colors = ndvi_pal,
+                 opacity = 0.6,
+                 group = "NDVI") %>%
+  addLegend("bottomright",
+            pal = ndvi_pal,
+            values = ndvi_val,
+            title = "NDVI",
+            group = "NDVI") %>% 
+  addCircles(color = "black",
+             opacity = 0.5,
+             fillColor = ~circ_pal(tot_drymass),
+             fillOpacity = 0.8,
+             radius = df$n_trees,
+             group = "drymass",
+             stroke = F,
+             popup = paste("n Trees:", df$n_trees, "<br>",
+                           "DHP:", df$mean_dhp)) %>% 
+  addLegend("bottomright",
+            pal = circ_pal,
+            values = ~tot_drymass,
+            title = "drymass (kg / 0.04 ha)",
+            group ="drymass") %>% 
+  addLayersControl("bottomleft",
+    baseGroups = c("BaseOSM","BaseStamen"),
+    overlayGroups = c("NDVI","drymass")
+  )
+map
+  
+saveWidget(map, file="map.html", selfcontained = T)
 
 ```
 
-
-## acknowledgements
-
-MERCI à Hugo Tremblay pour les données du picom réalisé sur la captation du carbone sur le campus
-
-## additionnal ressources
 
 tutorials:
 https://www.neonscience.org/dc-multiband-rasters-r
