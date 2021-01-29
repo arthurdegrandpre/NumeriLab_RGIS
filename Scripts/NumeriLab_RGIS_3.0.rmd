@@ -1,0 +1,173 @@
+---
+title: "RGIS 3.0"
+author: "Arthur de Grandpré et Lisane Arsenault-Boucher"
+date: "28/01/2021"
+output: 
+  html_document: 
+    highlight: haddock
+    keep_md: yes
+    theme: readable
+    toc: true
+    toc_float: false
+---
+
+# Context
+
+Most would agree that data science should always start and end with data visualization. It allows the scientist to understand the data, its structure and distribution, but also to connect with the public, by creating easily understandable content to facilitate communication. 
+
+In the previous workshops, we have learned how to:   
+- Efficiently visualize data and results  
+- Manipulate Data to facilitate its analysis  
+- Generate data efficiently in order to replicate real life trends  
+  
+... and all of this makes it hard to leave the R environment! Still, most of us still are leaving the comfort of R whenever we are faced with spatial data, splitting our workflow and creating different codes, different processes and ultimately resulting in a loss of time and efficiency.  
+  
+If you're willing to dig deep enough, you'll find out that R can be used as part of a high performance GIS workflow for many applications, especially when combined with some external programs such as QGIS, GRASS and GDAL.  
+  
+The main goal of this workshop is to break the mindset in which R is unable to deal with spatial data or spatial analysis.  
+It is important to keep in mind that this is *only an introduction* and that it is possible to do almost anything on R, and in *many different ways*.  
+Also, it might be even more important to keep in mind that in many situations, while R *could* do it, you might want to consider other solutions. Using R for everything is fun and can be practical, but sometimes it's just more tedious than necessary.
+
+
+# Version 3.0
+
+Version 1 and 2 were mostly focused on understanding basic data structure for spatial objects from the "sp" package, and how they can be used for basic mapping and building interactive maps using leaflet.  
+
+This version will shift towards a more up-do-date approach to spatial data in R using the "sf" package instead of "sp". **sf** is faster, integrates more functions, and is compatible with tidy writing. This workshop will also put more focus on producing actually publishable static maps, keeping the interactive maps as an extra.
+
+
+# R as a GIS and mapping software
+
+Multiple libraries have been made available in R in order to deal with spatial data, its visualisation, its manipulation and its analysis.  
+The most notable are probably the following:
+
+**GIS**  
+sp : allow the creation and manipulation of spatial objects (spatialpointsdataframes) + apply CRS and stransformations
+sf : alternative environment to sp, integrating more functions and compatible with tidy writing
+rgdal : An interface to access gdal, a spatial data processing library  
+rgeos : An interface to access geos, a spatial vector data processing library 
+raster : Allows to read and manipulate raster data. Very important!
+
+**mapping**  
+ggmap : extends ggplot2 mapping functionalities and enables to retrieve google 
+leaflet : allows to build interactive maps, google map style, easy to share
+
+
+# Exercices
+
+**NOTE:** All data for this exercise are located in the repository under the "Data" sub-directory
+
+##**Step 1.** Prepare the R environment and load the libraries
+```{r packages installation , eval=FALSE, include=FALSE}
+install.packages("sf")
+install.packages("tidyverse")
+install.packages("ggmap")
+```
+
+
+```{r preparation, message=F, warning=F}
+rm(list=ls())
+
+library("sf")
+library("tidyverse")
+library("ggmap")
+```
+
+##**Step 2.** reading and visualising point data + adding a *Google* type basemap
+
+Multiples solutions are available to read point data in the R environment depending on your database format. The most common data format is text, such as .csv files. When working with .csv files, you will often have two columns referring to the coordinates of your data, which can be used create a spatial object with the packages *sf* or *sp*.  
+  
+If you have a shapefile of your data, it can be imported directly as a spatial object by using the function st_read from *sf* or readOGR() from the *rgdal* package. The later will generate a *sp* compatible object.
+
+```{r reading point data}
+df = read.csv("../Data/csv/data_picom_HT.csv",sep=";") # contains forestry data for the UQTR campus, with lon/lat coordinates
+
+head(df)
+```
+
+All functions from *sf* are called with the prefix "st_". "st_as_sf()" can be used to transform a foreign object into a sf object, followed by "st_set_crs()" to define coordinate system. The data is in NAD83, which corresponds to epsg code 4269.
+
+```{r}
+dfs = df %>% 
+
+  st_as_sf(coords = c("lon","lat")) %>% 
+  st_set_crs("epsg:4269")
+
+dfs
+```
+It is very easy to transform the CRS of an object by using the st_transform function. it can be done my manually entering the datum, ellipsoid and projection, but the simplest way is to just feed the EPSG code to the function. EPSG codes are unique identifiers for CRS and can be found easily online. Let's transform to WGS84 (EPSG 4326)
+
+```{r sptransform}
+dfs = dfs %>% 
+  st_transform("epsg:4326")
+
+dfs
+```
+
+At this point, R recognizes the data as spatial data and will plot it as such if prompted to. The plot can then be manipulated into a simple data representation using base R. (More interesting with shapefiles... see https://r-spatial.github.io/sf/articles/sf5.html)
+
+```{r}
+plot(dfs)
+plot(dfs["tot_drymass"],
+     key.pos = 1, #(1=below, 2=left, 3=above and 4=right)
+     axes = T,
+     key.width = lcm(1.3),
+     key.length = 1.0,
+     ) 
+
+plot(dfs["tot_drymass"],
+     key.pos = 1, #(1=below, 2=left, 3=above and 4=right)
+     axes = T,
+     key.width = lcm(1.3),
+     key.length = 1.0,
+     breaks = "jenks") 
+```
+
+and the same can be done using ggplot2:
+
+```{r}
+dfs[,c(4:14,16)] = lapply(df[,c(6:16,18)], as.numeric)
+
+ggplot(dfs)+
+  geom_sf(aes(fill=tot_drymass), shape=21, size=3)+
+  scale_fill_viridis_c()
+
+```
+
+We can now see that we have spatial points with some values, but that doesn't give us much of an idea of what they are and their context. For adding context, a basemap is really important. 
+
+*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from google and OpenStreetMaps. Sadly, google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as stamen. That makes loading a static basemap a bit harder.  
+While it is still possible to access google maps and OpenStreetMaps, it is required to register an API key (generally free to obtain, but requires registration)  
+
+https://www.r-bloggers.com/geocoding-with-ggmap-and-the-google-api/ for google API
+
+
+```{r basemap, message=F}
+library(sp)
+library(ggmap)
+
+map = get_stamenmap(bbox=bbox(as_Spatial(dfs))+c(-0.001,-0.001,0.001,0.001),
+                  maptype = "terrain",
+                  zoom = 16)
+
+# other basemap types from stamen:
+#“terrain”, “terrain-background”, “terrain-labels”, “terrain-lines”, “toner”, “toner-2010”, “toner-2011”, “toner-background”, “toner-hybrid”, “toner-labels”, “toner-lines”, “toner-lite”, “watercolor”
+
+ggmap(map) +
+  geom_sf(data = dfs,
+          aes(fill = tot_drymass),
+          size = 3,
+          shape = 21,
+          inherit.aes=F
+          )
+
+```
+
+
+
+
+
+
+
+
+
