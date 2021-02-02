@@ -159,9 +159,26 @@ ggmap(map) +
           size = 3,
           shape = 21,
           inherit.aes=F
-          )
+          ) +
+  labs(
+    title = "Estimated forest drymass on UQTR campus, 2016",
+    # subtitle = "Subtitle", 
+    caption = "Basemap = Stamen Terrain, CRS = EPSG:4326 WGS84, produced 2021-02-02",
+    tag = "a)",
+    fill = "Tot. Drymass (kg)",
+    x = "Longitude",
+    y = "Latitude"
+    )+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust=1),
+    axis.text.y = element_text(angle = 45, hjust=1),
+    plot.caption = element_text(hjust = 0.5),
+    plot.title.position = "plot"
+    )
+
 
 ```
+
 
 
 
