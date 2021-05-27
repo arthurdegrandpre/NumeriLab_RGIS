@@ -13,25 +13,25 @@ output:
 
 # Context
 
-Most would agree that data science should always start and end with data visualization. It allows scientist to understand the data, its structure and distribution, but also to connect with the public, by creating easily understandable content that facilitates communication. 
+Most would agree that data science should always start and end with data visualization. It allows scientists to understand the data structure and distribution, but also to connect with the public, by creating easily understandable content that facilitates communication. 
 
 In the previous workshops, we have learned how to:   
 - Efficiently visualize data and results  
-- Manipulate Data to facilitate its analysis  
+- Manipulate data to facilitate its analysis  
 - Generate data efficiently in order to replicate real life trends  
   
-... and all of this makes it hard to leave the R environment! Still, most of us still are leaving the comfort of R whenever we are faced with spatial data, splitting our workflows and creating different scripts, different processes and ultimately resulting in a loss of time and efficiency.  
+... and all of this makes it hard to leave the R environment! Most of us still are leaving the comfort of R whenever we are faced with spatial data, splitting our workflows and creating different scripts, different processes and ultimately resulting in a loss of time and efficiency.  
   
 If you're willing to dig deep enough, you'll find out that R can be used as part of a high performance GIS workflow for many applications, especially when combined with some external programs such as QGIS, GRASS and GDAL.  
   
 The main goal of this workshop is to break the mindset in which R is bad at dealing with spatial data or spatial analysis.  
-It is important to keep in mind that this is *only an introduction* and that it is possible to do almost anything on R, and in *many different ways*.  
+It is important to keep in mind that this is *only an introduction* and that it is possible to do almost anything with R, and in *many different ways*.  
 Also, it might be even more important to keep in mind that in many situations, while R *could* do it, you might want to consider other solutions. Using R for everything is fun and can be practical, but sometimes it's just more tedious than necessary.  
 
 
 # Version 3.0
 
-Previous version of this workshop were mostly focused on understanding basic data structure for spatial objects from the "sp" package, and how they can be used for basic mapping and building interactive maps using leaflet.  
+Previous versions of this workshop were mostly focused on understanding basic data structure for spatial objects from the "sp" package, and how they can be used for basic mapping and building interactive maps using leaflet.  
 
 This version will shift towards a more up-do-date approach to spatial data in R using the "sf" package instead of "sp". **sf** is faster, integrates more functions, and is compatible with tidy writing. This workshop will also put more focus on producing actually publishable static maps, presenting interactive maps as a collaboration tool.
 
@@ -50,8 +50,8 @@ raster : Allows to read and manipulate raster data. Very important!
 
 **mapping**  
 ggmap : extends ggplot2 mapping functionalities and is able to retrieve basemaps    
-leaflet : allows to build interactive maps, google map style, easy to share  
-ggsn : add north arrow and scalebar to ggmap  
+leaflet : allows to build interactive maps, Google map style, easy to share  
+ggsn : add North arrow and scalebar to ggmap  
 
 
 # Exercices
@@ -70,7 +70,8 @@ install.packages("raster")
 install.packages("leafsync")
 install.packages("htmlwidgets")
 install.packages("ggsn")
-webshot::install_phantomjs() # install once
+install.packages("rgdal", type = "source") # requires an installation of Rtools, see https://cran.r-project.org/bin/windows/Rtools/
+webshot::install_phantomjs() # install only once
 ```
 
 ```{r preparation, message=F, warning=F}
@@ -87,13 +88,14 @@ library("htmlwidgets")
 library("sp")
 library("ggmap")
 library("ggsn")
+library("rgdal")
 ```
 
 # **Step 2.** Reading and visualising point data + adding a basemap
 
 Multiples solutions are available to read point data in the R environment depending on your database format. The most common data format is text, such as .csv files. When working with .csv files, you will often have two columns referring to the coordinates of your data, which can be used create a spatial object with the packages *sf* or *sp*.  
   
-If you have a shapefile of your data, it can be imported directly as a spatial object by using the function st_read from *sf* or readOGR() from the *rgdal* package. The later will generate an *sp* compatible object.
+If you have a shapefile, it can be imported directly as a spatial object by using the function st_read from *sf* or readOGR() from the *rgdal* package. The later will generate an *sp* compatible object.
 
 ```{r reading point data}
 df = read.csv("../Data/csv/data_picom_HT.csv",sep=";") # contains forestry data for the UQTR campus, with lon/lat coordinates
@@ -111,7 +113,7 @@ dfs = df %>%
 
 dfs
 ```
-It is very easy to transform the CRS of an object by using the st_transform function. it can be done my manually entering the datum, ellipsoid and projection, but the simplest way is to just feed the EPSG code to the function. EPSG codes are unique identifiers for CRS and can be found easily online. Let's transform to WGS84 (EPSG 4326)
+It is very easy to transform the CRS of an object by using the st_transform function. It can be done my manually by entering the datum, ellipsoid and projection, but the simplest way is to just feed the EPSG code to the function. EPSG codes are unique identifiers for CRS and can be found easily online. Let's transform to WGS84 (EPSG 4326).
 
 ```{r sptransform}
 dfs = dfs %>% 
@@ -142,20 +144,17 @@ plot(dfs["tot_drymass"],
 and the same can be done using ggplot2:
 
 ```{r}
-# dfs[,c(4:14,16)] = lapply(df[,c(6:16,18)], as.numeric)
-
 ggplot(dfs)+
   geom_sf(aes(fill=tot_drymass), shape=21, size=3)+
   scale_fill_viridis_c()
-
 ```
 
-We can now see that we have spatial points with some values, but that doesn't give us much of an idea of what they are and their context. For adding context, a basemap is really important. 
+We can now see that we have spatial points with some values, but that does not give us much of an idea of what they are and their context. For adding context, a basemap is really important. 
 
-*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from google and OpenStreetMaps. Sadly, google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as stamen. That makes loading a static basemap a bit harder.  
-While it is still possible to access google maps and OpenStreetMaps, it is required to register an API key (generally free to obtain, but requires registration)  
+*Note*: Until recently, get_map from the package ggmap allowed to easily obtain basemaps from Google and OpenStreetMaps. Sadly, Google now requires an API key and billing information to access the basemaps, and it also broke the access to open access maps such as Stamen. That makes loading a static basemap a bit harder.  
+While it is still possible to access Google maps and OpenStreetMaps, it is required to register an API key (which can generate costs for very heavy users)  .
 
-https://www.r-bloggers.com/geocoding-with-ggmap-and-the-google-api/ for google API
+https://www.r-bloggers.com/geocoding-with-ggmap-and-the-google-api/ for Google API
 
 
 ```{r basemap, message=F}
@@ -208,7 +207,7 @@ We are planning a more advanced workshop about R and static maps in the future, 
 # **Step 3.** Using leaflet to create interactive maps
 
 Luckily, leaflet is still able to call basemaps without registering an API key.  
-By default, leaflet uses OpenStreetMap
+By default, leaflet uses OpenStreetMap.
 
 ```{r}
 # using the default values, leaflet uses OpenStreetMap
@@ -217,7 +216,7 @@ leaflet(dfs) %>%
 
 ```
 
-But it can be set to call other data sources, including google if an API key is registered.
+But it can be set to call other data sources, including Google if an API key is registered.
 
 ```{r}
 leaflet(dfs) %>%
@@ -245,7 +244,7 @@ leaflet(dfs) %>%
 
 ```
 
-And those can be customized to display data values with continuous scales
+And those can be customized to display data values with continuous scales.
 
 ```{r}
 
@@ -264,7 +263,7 @@ leaflet(dfs) %>%
 
 ```
 
-Or by quantiles
+Or by quantiles.
 
 ```{r}
 
@@ -281,7 +280,7 @@ leaflet(dfs) %>%
 
 ```
 
-And their size can also be fixed to represent the size of a variable
+Marker size can also be fixed to represent the size of a variable.
 
 ```{r}
 leaflet(dfs) %>%
@@ -294,7 +293,7 @@ leaflet(dfs) %>%
   addScaleBar(position="bottomleft")
 ```
 
-And then this map can be saved to a png or jpg format using the *mapview* package
+And then this map can be saved to a png or jpg format using the *mapview* package.
 
 ```{r}
 m1 = leaflet(dfs) %>%
@@ -316,7 +315,7 @@ mapshot(m1, file= "../Figures/test02.png")
 
 # **Step 4.** Loading and plotting vectors and rasters
 
-often, we have polygons delimiting zones of interest for our data. they can be used for visualisation, but also in data analysis.
+Often, we have polygons delimiting zones of interest for our data. They can be used for visualization, but also in data analysis.
 
 ```{r}
 ##adding polygon
@@ -337,17 +336,17 @@ leaflet(dfs) %>%
 
 When working with spatial data, it can often be useful to access remote sensing data to perform different types of analysis.
 
-the rest of the workshop will be mostly about working with such data in R, based on a sample of Sentinel-2 imagery.
+The rest of the workshop will be mostly about working with such data in R, based on a sample of Sentinel-2 imagery.
 
-Then, let's load some data raster data that we can work with.
-To do so, the package "raster" contains most of the basic functions required for R to read and manage rasters. A raster is basically a spatially referenced matrix. where every value is associated with a spatial extent (resolution) and a coordinate taken from a georeference system (ex: WGS84).
+Then, let's load some raster that we can work with.
+To do so, the package "raster" contains most of the basic functions required for R to read and manage rasters. A raster is basically a spatially referenced matrix where each value is associated with a spatial extent (resolution) and a coordinate taken from a geodetic system (ex: WGS84).
 
 ```{r loading and plotting rasters}
 
 # The raster function allows to read the most common raster formats, such as .TIFF
 tr_r = raster("../Data/S2/True color.tiff")
 
-# base R has some functions that allow plotting rasters
+# base R has some functions that allow to plot rasters
 plot(tr_r, main="UQTR on 2018-09-13, Sentinel-2")
 # something seems quite wrong with the color, so let's inspect our raster
 tr_r
@@ -375,7 +374,7 @@ tr_r2=raster("../Data/s2/True color.tiff", band=2)
 tr_r2 # this shows we are now using band 2 of 3 instead of 1
 ```
 
-We need to use the brick function to create a RasterBrick, composed of multiple raster layers
+We need to use the brick function to create a RasterBrick, composed of multiple raster layers (red, green, blue and near infrared).
 
 ```{r}
 
@@ -391,7 +390,7 @@ plotRGB(tr_r, r=1,g=2,b=3,stretch="hist")
 ```
 
 
-It's not yet possible to add composite rasters in leaflet (such as RGB). to include true color raster, we need to add it using the mapview package and the viewRGB function. It does not allow to work the layer control in the same way.
+It's not yet possible to add composite rasters in leaflet (such as RGB). To include true color raster, we need to add it by using the mapview package and the viewRGB function. It does not allow to work the layer control in the same way.
 
 ```{r}
 
@@ -399,7 +398,7 @@ viewRGB(tr_r, 1,2,3, map=m1, quantiles = c(0.05, 0.95))
 
 ```
 
-It is also possible to visualise multiple single band rasters at once using the leafsync package
+It is also possible to visualize multiple single band rasters at once using the leafsync package
 
 ```{r}
 m1 = leaflet(dfs) %>% 
@@ -412,7 +411,7 @@ m2 = leaflet(dfs) %>%
 sync(m1,m2)
 ```
 
-when multiple bands are available, it becomes possible to easily perform raster maths, allowing to obtain different indexes, such as NDVI
+When multiple bands are available, it becomes possible to easily perform raster maths, allowing to obtain different indexes, such as the normalized difference vegetation index (NDVI). This index favors the visualisation of vegetation.
 
 ```{r}
 
@@ -421,7 +420,7 @@ plot(tr_r$NDVI)
 
 ```
 
-it is also possible to limit the extent of the satellite data to our zone of interest as delimited by our campus polygon
+It is also possible to limit the extent of the satellite data to our zone of interest as delimited by our campus polygon.
 
 ```{r}
 
@@ -430,7 +429,7 @@ plot(crop_tr$NDVI)
 
 ```
 
-from there, we can visualize the campus NDVI values back into the leaflet environment.
+From there, we can visualize the campus NDVI values back into the leaflet environment.
 
 ```{r}
 
@@ -446,9 +445,9 @@ ndvi_map
 
 ```
 
-since we have many data points scattered around campus that already have a lot of information, it can be interesting to add some remote sensing data to our data frame. That allows us to look at many types of interesting relations in the data.
+Since we have many data points scattered around campus that already have a lot of information, it can be interesting to add some remote sensing data to our data frame. That allows us to look at many types of interesting relations in the data.
 
-# **Step 5.** extracting data from rasters
+# **Step 5.** Extracting data from rasters
 ```{r ndvi zonal stats from extract function}
 
 mean_ndvi = extract(crop_tr$NDVI, dfs, buffer=10, small=T, fun=mean)
@@ -466,7 +465,7 @@ boxplot(dfs$ndvi~dfs$zone_eco)
 
 Now that we know how to display and manipulate spatial data, let's put it into a nice shareable format and save it.
 
-To do so, let's redefine our colors, add layer control and some additionnal information when clicking on points, then let's save the map into an html object.
+To do so, let's redefine our colors, add layer control and some additional information when clicking on points, then let's save the map into an html object.
 
 # **Step 6.** Sharing your awesome map
 ```{r}
@@ -518,9 +517,9 @@ saveWidget(map, file="../Figures/map.html", selfcontained = T)
 
 # **Step 7.** Sharing spatial data
 
-There are many ways to share spatial data without loosing it's spatial properties (CRS, for example).
+There are many ways to share spatial data without loosing its spatial properties (CRS, for example).
 
-The classics are the ESRI shapefiles, but they are very clunky, slow and require multiple files. Alternatives include the GeoJSON format, and more recently, geopackage (GPKG, which is also faster)
+The classics are the ESRI shapefiles, but they are very clunky, slow and require multiple files. Alternatives include the GeoJSON format, and more recently, geopackage (GPKG, which is also faster).
 
 ```{r write geopackage}
 
